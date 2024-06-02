@@ -1,65 +1,26 @@
-CSEG_A SEGMENT AT FFFF0h 
- ASSUME CS: CSEG_A
- JMP FAR START 
-CSEG_A ENDS
-DSEG SEGMENT PUBLIC 'DATA'
- SEG7 DB 7E,30, 6D, 79, 33, 5B, 5F, 72, 7F, 7B 
- TASTER EQU 0800h 
- DISP_1 EQU 1000h
- DISP_2 EQU 1800h 
- MEMORIJA DB 80 DUP(?) 
- BROJAC DB 80 
- CIFRA DB 0 
-DSEG ENDS 
-
-CSEG_B SEGMENT AT FF100h
- ASSUME CS: CSEG_B, DS: DSEG
+CHARS DB 7Eh, 4Fh, 5Bh, 4Fh, 0Fh ;look-up табела за DESEt
+ DISP_S EQU 1000h ;адреса на порта за селекција
+ DISP_P EQU 2000h ;адреса на порта за приказ
+DSEG ENDS
+CSEG SEGMENT 'CODE'
+ ASSUME CS: CSEG, DS: DSEG
 START:
- MOV AX, DSEG 
- MOV DS, AX 
- MOV AX, 0 
- MOV ES, AX 
- MOV WORD PTR ES:[8], OFFSET NMI_ISR 
- MOV WORD PTR ES:[10], SEG NMI_ISR
- LEA SI, MEMORIJA 
- MOV DI, SI 
-LAB1: CMP BROJAC, 0 
- JNZ LAB1 
- MOV SI, DI
- MOV CX, 80
-LAB2: MOV AL, [SI] 
- CMP AL, 2Dh 
- JBE NEXT ;
- CMP AL, 6Dh
- JAE NEXT
- INC CIFRA
-NEXT: INC SI
- LOOP LAB2 ; 
- MOV AL, CIFRA
- MOV AH, 0
- MOV CX, 10 
- DIV CL 
- MOV BX, OFFSET SEG7
- XLAT 
- MOV DX, DISP_1 
- OUT DX, AL
- MOV AL, AH
- XLAT
- MOV DX, DISP_2 
- OUT DX, AL
- HLT
-CSEG_B ENDS
- END START
- CSEG_C SEGMENT 'CODE'
- ASSUME CS: CSEG_C
- EXTRN BROJAC BYTE 
-
-NMI_ISR PROC FAR 
- MOV DX, TASTER
- IN AL, DX 
- MOV [SI], AL 
- INC SI 
- DEC BROJAC 
- IRET
-NMI_ISR ENDP
- CSEG_C ENDS 
+ MOV AX, DSEG
+ MOV DS, AX
+AGAIN:
+ MOV CX, 5 ;пет сегменти  пет записи
+ MOV SI, 0
+ MOV BL, 0FEh ;дефинира кој сегмент е тековно активен
+ISPIS:
+ MOV DX, DISP_S ;дел од кодот кој врши
+ MOV AL, BL ;испис на еден по еден
+ OUT DX, AL ;знак на соодветниот
+ MOV DX, DISP_P ;сегмент на LED дисплејот
+ MOV AL, CHARS[SI] ;SI ја покажува позицијата на
+ OUT DX, AL ;сегментот на кој се врши
+ ROL BL ;приказ на знакот
+ INC SI
+ LOOP ISPIS
+ JMP AGAIN
+CSEG ENDS
+ END START 
